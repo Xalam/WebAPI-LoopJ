@@ -2,82 +2,87 @@ package com.example.quoteapp;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import cz.msebera.android.httpclient.Header;
 
-public class MainActivity extends AppCompatActivity {
-
+public class ListQuoteActivity extends AppCompatActivity {
+    private static final String TAG = ListQuoteActivity.class.getSimpleName();
     ProgressBar progressBar;
-    TextView tvQuote, tvAuthor;
-    Button btnAllQuotes;
+    ListView listView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_list_quote);
 
-        tvQuote = findViewById(R.id.tvQuote);
-        tvAuthor = findViewById(R.id.tvAuthor);
+        listView = findViewById(R.id.listQuotes);
         progressBar = findViewById(R.id.progressBar);
-        btnAllQuotes = findViewById(R.id.btnAllQuotes);
-        btnAllQuotes.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(new Intent(MainActivity.this, ListQuoteActivity.class));
-            }
-        });
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle("List of Quotes");
+        }
 
-        getRandomQuote();
+        getListQuotes();
     }
 
-    private void getRandomQuote() {
+    private void getListQuotes() {
         progressBar.setVisibility(View.VISIBLE);
+
         AsyncHttpClient asyncHttpClient = new AsyncHttpClient();
-        String url = "https://programming-quotes-api.herokuapp.com/quotes/random";
+        String url = "https://programming-quotes-api.herokuapp.com/quotes/page/1";
         asyncHttpClient.get(url, new AsyncHttpResponseHandler() {
             @Override
             public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
                 progressBar.setVisibility(View.INVISIBLE);
 
+                ArrayList<String> listQuote = new ArrayList<>();
+
                 String result = new String(responseBody);
-                String TAG = "Result : ";
                 Log.d(TAG, result);
                 try {
-                    JSONObject jsonObject = new JSONObject(result);
+                    JSONArray jsonArray = new JSONArray(result);
 
-                    String quote = jsonObject.getString("en");
-                    String author = jsonObject.getString("author");
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        JSONObject jsonObject = jsonArray.getJSONObject(i);
+                        String quote = jsonObject.getString("en");
+                        String author = jsonObject.getString("author");
+                        listQuote.add("\n" + quote + "\n — " + author + "\n");
+                    }
+                    ArrayAdapter arrayAdapter = new ArrayAdapter<>(ListQuoteActivity.this, android.R.layout.simple_list_item_1, listQuote);
+                    listView.setAdapter(arrayAdapter);
 
-                    tvQuote.setText(quote);
-                    tvAuthor.setText(author);
                 } catch (Exception e) {
-                    Toast.makeText(MainActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ListQuoteActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
+                    e.printStackTrace();
                 }
             }
 
             @Override
             public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
                 progressBar.setVisibility(View.INVISIBLE);
+
                 String errorMessage;
                 switch (statusCode) {
                     case 401:
                         errorMessage = statusCode + " : Bad Request";
                         break;
                     case 403:
-                        errorMessage = statusCode + " : Forbidden";
+                        errorMessage = statusCode + " : Forbiden";
                         break;
                     case 404:
                         errorMessage = statusCode + " : Not Found";
@@ -86,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
                         errorMessage = statusCode + " : " + error.getMessage();
                         break;
                 }
-                Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
+                Toast.makeText(ListQuoteActivity.this, errorMessage, Toast.LENGTH_SHORT).show();
             }
         });
     }
